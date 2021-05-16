@@ -2,23 +2,8 @@
 #include <ESP32_LoRaWAN.h>
 #include <TinyGPS++.h>
 
-// Display is initializied in LoraWan -- SSD1306Wire - just use it.
 #define GPS_RX 23
 #define GPS_TX 22
-
-/*license for Heltec ESP32 LoRaWan, quary your ChipID relevant license: http://resource.heltec.cn/search */
-//uint32_t license[4] = {0xFA009A56, 0x5E5FC459, 0xE47E4407, 0xD81E58D2};
-uint32_t license[4] = {0x000000, 0x0, 0x0, 0x0};
-
-/* OTAA para*/
-uint8_t DevEui[] = {0x00, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-uint8_t AppEui[] = {0x00, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-uint8_t AppKey[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-
-/* ABP para*/
-uint8_t NwkSKey[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-uint8_t AppSKey[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-uint32_t DevAddr = (uint32_t)0x0;
 
 /*LoraWan channelsmask, default channels 0-7*/
 uint16_t userChannelsMask[6] = {0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000};
@@ -30,7 +15,7 @@ DeviceClass_t loraWanClass = CLASS_A;
 uint32_t appTxDutyCycle = 45000;
 
 /*OTAA or ABP*/
-bool overTheAirActivation = true;
+bool overTheAirActivation = false;
 
 /*ADR enable*/
 bool loraWanAdr = true;
@@ -86,15 +71,24 @@ LoRaMacRegion_t loraWanRegion = LORAMAC_REGION_EU868;
 // https://stackoverflow.com/questions/21005845/how-to-get-float-in-bytes#21005927
 // The TinyGPS++ object
 TinyGPSPlus gps;
+
 typedef union
 {
-  float f[4];              // Assigning fVal.f will also populate fVal.bytes;
-  unsigned char bytes[16]; // Both fVal.f and fVal.bytes share the same 4 bytes of memory.
+  float f[5];              // Assigning fVal.f will also populate fVal.bytes;
+  unsigned char bytes[20]; // 6*4 bytes for float = Both fVal.f and fVal.bytes share the same 4 bytes of memory.
 } floatArr2Val;
 floatArr2Val latlong;
-float latitude;
-float longitude;
-float altitude;
-float hdop;
+float latitude;  //floatArr2Val[0]
+float longitude; //floatArr2Val[1]
+float altitude;  //floatArr2Val[2]
+float hdop;      //floatArr2Val[3]
+float vbatt;     //floatArr2Val[4]
+float vin;       //
+
 char s[16]; // used to sprintf for OLED display
+
+#define Fbattery 3700 //The default battery is 3700mv when the battery is fully charged.
+
+#define XS 1.0 //The returned reading is multiplied by this XS to get the battery voltage.
+
 
