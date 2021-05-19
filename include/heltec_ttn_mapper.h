@@ -2,8 +2,8 @@
 #include <ESP32_LoRaWAN.h>
 #include <TinyGPS++.h>
 
-#define GPS_RX 23
-#define GPS_TX 22
+//#define GPS_RX 23
+//#define GPS_TX 22
 
 /*LoraWan channelsmask, default channels 0-7*/
 uint16_t userChannelsMask[6] = {0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000};
@@ -12,10 +12,10 @@ uint16_t userChannelsMask[6] = {0x00FF, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000};
 DeviceClass_t loraWanClass = CLASS_A;
 
 /*the application data transmission duty cycle.  value in [ms].*/
-uint32_t appTxDutyCycle = 45000;
+uint32_t appTxDutyCycle = 55000;
 
 /*OTAA or ABP*/
-bool overTheAirActivation = false;
+bool overTheAirActivation = true;
 
 /*ADR enable*/
 bool loraWanAdr = true;
@@ -87,7 +87,7 @@ float vin;       //
 
 char s[16]; // used to sprintf for OLED display
 
-#define Fbattery 3700 //The default battery is 3700mv when the battery is fully charged.
+#define Fbattery 5540 //The default battery is 3700mv when the battery is fully charged.
 
 #define XS 1.0 //The returned reading is multiplied by this XS to get the battery voltage.
 

@@ -59,11 +59,8 @@ console.log(JSON.stringify(decodeUplink(input)));
 #include <pins_arduino.h>
 #include <ESP32_LoRaWAN.h>
 #include <TinyGPS++.h>
-#include "heltec_ttn_mapper.h" 
-//#include "ttn_variables.h" //define your Variables HERE or copy file to a device-specific include - like this:
-#include "jrs-heltec-gps2_ABP.h" //ESP32ChipID=4076F....
-//#include "jrs-heltec1_ABP.h" //ESP32ChipID=DC6CFC....
-
+#include "heltec_ttn_mapper.h"
+#include "my_ttn_variables.h" //copy ttn_variables.h to my_ttn_variabeles.h and define your Variables
 
 #define WITH_DEBUG_OUT //comment out - to disable serial-debug-output
 
@@ -96,7 +93,7 @@ void display_data_8x8()
   Display.setTextAlignment(TEXT_ALIGN_LEFT);
   int line = 0;
 
-  sprintf(s, "Vbat: %.02f V", vbatt);
+  sprintf(s, "Vbat: %.02f mV", vbatt);
   Display.drawString(10, textsize * line, s);
   line++;
 
@@ -162,7 +159,7 @@ void display_data_8x8()
     search_counter++;
     Display.drawString(10, textsize * line, "Search for GPS Signal...");
     line++;
-    
+
     sprintf(s, "hdop: %f", hdop);
     Display.drawString(10, textsize * line, s);
     line++;
@@ -206,14 +203,51 @@ void display_data_serial()
 
   sprintf(s, "gpsbytes: %d", gps.charsProcessed());
   Serial.println(s);
+
+  switch (deviceState)
+  {
+  case DEVICE_STATE_INIT:
+  {
+    sprintf(s, "Lorawan: INIT");
+    break;
+  }
+  case DEVICE_STATE_JOIN:
+  {
+    sprintf(s, "Lorawan: JOIN");
+    break;
+  }
+  case DEVICE_STATE_SEND:
+  {
+    sprintf(s, "Lorawan: SEND");
+    break;
+  }
+  case DEVICE_STATE_CYCLE:
+  {
+    sprintf(s, "Lorawan: CYCLE");
+    break;
+  }
+  case DEVICE_STATE_SLEEP:
+  {
+    sprintf(s, "Lorawan: SLEEP");
+    break;
+  }
+  default:
+  {
+    sprintf(s, "Lorawan: Error-State");
+    break;
+  }
+  }
+  Serial.println(s);
 }
 #endif
 
 double ReadVoltage(byte pin)
 {                                   // https://github.com/HelTecAutomation/Heltec_ESP32/blob/62228d5a64dbe88989285519b4077be7b4125ce5/examples/ESP32/ADC_Read_Voltage/ADC_Read_Accurate/ADC_Read_Accurate.ino
   double reading = analogRead(pin); // Reference voltage is 3v3 so maximum reading is 3v3 = 4095 in range 0 to 4095
-  if (reading < 1 || reading >= 4095)
-    return -0.000000000000016 * pow(reading, 4) + 0.000000000118171 * pow(reading, 3) - 0.000000301211691 * pow(reading, 2) + 0.001109019271794 * reading + 0.034143524634089;
+                                    // if (reading < 1 || reading >= 4095)
+                                    //    return -0.000000000000016 * pow(reading, 4) + 0.000000000118171 * pow(reading, 3) - 0.000000301211691 * pow(reading, 2) + 0.001109019271794 * reading + 0.034143524634089;
+                                    //  else
+  return reading;
 } // Added an improved polynomial, use either, comment out as required
 
 void get_coords()
@@ -251,7 +285,6 @@ void get_coords()
 
 static void prepareTxFrame(uint8_t port)
 {
-  get_coords();
   appDataSize = sizeof(latlong.bytes); //AppDataSize max value is 64
   for (int i = 0; i < appDataSize; i++)
   {
@@ -302,11 +335,9 @@ void setup()
   delay(2500);
 }
 
-// The loop function is called in an endless loop
-void loop()
+void send_lora()
 {
-  get_coords();   // read coords
-  if (validate()) // coordinats are not empty
+  do
   {
     switch (deviceState)
     {
@@ -323,10 +354,13 @@ void loop()
     }
     case DEVICE_STATE_SEND:
     {
-      // LoRaWAN.displaySending();
+      LoRaWAN.displaySending();
+      get_coords();
       prepareTxFrame(appPort);
-      display_data_serial();
       display_data_8x8();
+#if defined(WITH_DEBUG_OUT)
+      display_data_serial();
+#endif
       LoRaWAN.send(loraWanClass);
       delay(15000); // show data
       deviceState = DEVICE_STATE_CYCLE;
@@ -336,13 +370,17 @@ void loop()
     {
       // Schedule next packet transmission
       txDutyCycleTime = appTxDutyCycle + randr(-APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND);
+#if defined(WITH_DEBUG_OUT)
+      Serial.print("Cycle: ");
+      Serial.println(txDutyCycleTime);
+#endif
       LoRaWAN.cycle(txDutyCycleTime);
       deviceState = DEVICE_STATE_SLEEP;
       break;
     }
     case DEVICE_STATE_SLEEP:
     {
-      //   LoRaWAN.displayAck();
+      LoRaWAN.displayAck();
       LoRaWAN.sleep(loraWanClass, debugLevel);
       break;
     }
@@ -352,6 +390,16 @@ void loop()
       break;
     }
     }
+  } while (validate());
+}
+
+// The loop function is called in an endless loop
+void loop()
+{
+  get_coords();   // read coords
+  if (validate()) // coordinats are not empty
+  {
+    send_lora();
   }
   else
   {
